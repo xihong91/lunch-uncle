@@ -8,6 +8,15 @@ type = "Text"
 globs = ["**/*.html"]
 fallthrough = false
 
+# Limit each IP to 10 chat requests a minute, since every turn spends API credit.
+[[ratelimits]]
+name = "CHAT_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
+
 # Secrets (OPENCODE_API_KEY, GOOGLE_PLACES_API_KEY) are set with
 # `wrangler secret put` for deploys and `.env` for local development.
 # Never put them in this file.
