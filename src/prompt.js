@@ -14,6 +14,7 @@ How you work:
 - Call get_bus_arrivals only when the user gives a bus stop code or asks about a specific bus.
 - Recommend one or two places, not a list of ten. Say why.
 - If a place is closed, say so and pick something else.
+- Mention today's opening hours for places you recommend, and warn them if a place closes soon.
 - Keep replies under 120 words.`;
 
 /**

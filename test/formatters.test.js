@@ -93,7 +93,46 @@ test("formatPlaces tolerates a place with no location", () => {
     rating: null,
     distance_m: null,
     open_now: false,
+    hours_today: null,
+    closes_at: null,
   });
+});
+
+const WEEK = [
+  "Monday: 10:30 AM – 3:30 PM",
+  "Tuesday: Closed",
+  "Wednesday: 11:00 AM – 2:00 PM",
+  "Thursday: 10:30 AM – 3:30 PM",
+  "Friday: 10:30 AM – 3:30 PM",
+  "Saturday: 10:30 AM – 3:30 PM",
+  "Sunday: Open 24 hours",
+];
+
+test("formatPlaces gives today's hours and closing time in Singapore time", () => {
+  const places = [
+    {
+      displayName: { text: "Lunch Only" },
+      currentOpeningHours: {
+        openNow: true,
+        weekdayDescriptions: WEEK,
+        nextCloseTime: "2026-10-21T06:00:00Z",
+      },
+    },
+  ];
+  // 02:00 UTC on Wednesday 21 Oct is 10:00 in Singapore, also Wednesday.
+  const [place] = formatPlaces(places, CT_HUB_2, new Date("2026-10-21T02:00:00Z"));
+  assert.equal(place.hours_today, "11:00 AM – 2:00 PM");
+  assert.equal(place.closes_at, "2:00 PM");
+});
+
+test("formatPlaces uses the Singapore day, not the UTC day", () => {
+  const places = [
+    { displayName: { text: "Lunch Only" }, currentOpeningHours: { weekdayDescriptions: WEEK } },
+  ];
+  // 17:00 UTC on Tuesday is already 01:00 Wednesday in Singapore.
+  const [place] = formatPlaces(places, CT_HUB_2, new Date("2026-10-20T17:00:00Z"));
+  assert.equal(place.hours_today, "11:00 AM – 2:00 PM");
+  assert.equal(place.closes_at, null);
 });
 
 test("formatForecast returns an error when forecasts are missing", () => {

@@ -13,6 +13,7 @@ const SEARCH_RADIUS_METRES = 800;
 const MAX_PLACES = 10;
 const FORECAST_AREA = "Kallang";
 const TOOL_TIMEOUT_MS = 8_000;
+const SINGAPORE_OFFSET_MS = 8 * 60 * 60 * 1000; // UTC+8, no daylight saving
 
 const PLACES_URL = "https://places.googleapis.com/v1/places:searchText";
 const FORECAST_URL =
@@ -29,7 +30,7 @@ export const toolDefinitions = [
     function: {
       name: "find_lunch_places",
       description:
-        "Search for places to eat near CT Hub 2. Returns name, rating, distance and whether it is open now.",
+        "Search for places to eat near CT Hub 2. Returns name, rating, distance, whether it is open now, today's opening hours and when it next closes (Singapore time).",
       parameters: {
         type: "object",
         properties: {
@@ -142,13 +143,40 @@ async function findLunchPlaces({ query, open_now = false }, env) {
 /**
  * Shape Places API results into the fields Uncle needs.
  */
-export function formatPlaces(places, origin) {
+export function formatPlaces(places, origin, now = new Date()) {
   return places.map(({ displayName, rating, location, currentOpeningHours }) => ({
     name: displayName?.text ?? "Unnamed",
     rating: rating ?? null,
     distance_m: location ? Math.round(haversineMetres(origin, location)) : null,
     open_now: currentOpeningHours?.openNow ?? null,
+    hours_today: hoursToday(currentOpeningHours?.weekdayDescriptions, now),
+    closes_at: currentOpeningHours?.openNow
+      ? singaporeTime(currentOpeningHours.nextCloseTime)
+      : null,
   }));
+}
+
+// Places' weekdayDescriptions run Monday to Sunday, e.g. "Monday: 10:30 AM – 3:30 PM".
+function hoursToday(weekdayDescriptions, now) {
+  if (!Array.isArray(weekdayDescriptions) || weekdayDescriptions.length !== 7) {
+    return null;
+  }
+  const sgDay = new Date(now.getTime() + SINGAPORE_OFFSET_MS).getUTCDay();
+  const line = weekdayDescriptions[(sgDay + 6) % 7];
+  return typeof line === "string" ? line.replace(/^[^:]+:\s*/, "") : null;
+}
+
+// Turn an RFC 3339 timestamp into a Singapore clock time, e.g. "3:30 PM".
+function singaporeTime(timestamp) {
+  const date = timestamp ? new Date(timestamp) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Singapore",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 /**
